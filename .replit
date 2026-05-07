@@ -7,8 +7,15 @@ channel = "stable-24_05"
 packages = ["chromium", "gh", "unzip", "noto-fonts-cjk-sans", "noto-fonts-cjk-serif", "noto-fonts-emoji"]
 
 [[ports]]
+localPort = 1455
+
+[[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5904
+externalPort = 3000
 
 [env]
 PORT = "5000"

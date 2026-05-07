@@ -9,11 +9,17 @@ import { nanoid } from "nanoid";
 const viteLogger = createLogger();
 
 export async function setupVite(server: Server, app: Express) {
+  const replitDomains = process.env.REPLIT_DOMAINS
+    ? process.env.REPLIT_DOMAINS.split(",").map((d) => d.trim()).filter(Boolean)
+    : [];
+
   const replitHost = process.env.REPLIT_DEV_DOMAIN
     ? process.env.REPLIT_DEV_DOMAIN
-    : process.env.REPL_SLUG && process.env.REPL_OWNER
-      ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-      : undefined;
+    : replitDomains.length > 0
+      ? replitDomains[0]
+      : process.env.REPL_SLUG && process.env.REPL_OWNER
+        ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+        : undefined;
 
   const hmrOptions = replitHost
     ? {

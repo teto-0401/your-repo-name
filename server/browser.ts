@@ -10,6 +10,21 @@ puppeteer.use(StealthPlugin());
 const LOCK_RETRY_DELAY_MS = 500;
 const LOCK_RETRY_COUNT = 8;
 const ACCEPT_LANGUAGE = "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7";
+const PROFILE_LOCK_PATTERNS = [
+  /already running.*userDataDir/i,
+  /profile appears to be in use/i,
+  /has locked the profile/i,
+  /SingletonLock/i,
+];
+
+function isProfileLockError(message: string): boolean {
+  return PROFILE_LOCK_PATTERNS.some((pattern) => pattern.test(message));
+}
+
+function getFallbackUserDataDir(baseDir: string, attempt: number): string {
+  const suffix = `${process.pid}-${Date.now()}-${attempt}`;
+  return path.join(path.dirname(baseDir), `${path.basename(baseDir)}-session-${suffix}`);
+}
 
 function findChromeFromPuppeteerCache(cacheRoot: string): string | undefined {
   const chromeRoot = path.join(cacheRoot, 'chrome');
@@ -36,6 +51,7 @@ export class BrowserManager {
   private page: Page | null = null;
   private cdp: CDPSession | null = null;
   private isClosing = false;
+  private downloadDir = process.env.BROWSER_DOWNLOAD_DIR || path.join(process.cwd(), '.cache', 'downloads');
   
   constructor(
     private onFrame: (data: string) => void,
@@ -49,8 +65,9 @@ export class BrowserManager {
       process.env.PLAYWRIGHT_BROWSERS_PATH ??= process.env.RENDER
         ? '/opt/render/.cache/ms-playwright'
         : path.join(process.cwd(), '.cache', 'ms-playwright');
-      const userDataDir = process.env.BROWSER_USER_DATA_DIR || path.join(process.cwd(), '.cache', 'chrome-user-data');
-      fs.mkdirSync(userDataDir, { recursive: true });
+      const configuredUserDataDir = process.env.BROWSER_USER_DATA_DIR || path.join(process.cwd(), '.cache', 'chrome-user-data');
+      fs.mkdirSync(configuredUserDataDir, { recursive: true });
+      fs.mkdirSync(this.downloadDir, { recursive: true });
       let execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (!execPath) {
         const puppeteerCachePaths = [
@@ -108,12 +125,14 @@ export class BrowserManager {
       }
 
       let launchError: unknown;
+      let launchUserDataDir = configuredUserDataDir;
       for (let attempt = 1; attempt <= LOCK_RETRY_COUNT; attempt++) {
         try {
+          fs.mkdirSync(launchUserDataDir, { recursive: true });
           this.browser = await puppeteer.launch({
             headless: true,
             executablePath: execPath,
-            userDataDir,
+            userDataDir: launchUserDataDir,
             args: [
               '--no-sandbox',
               '--disable-setuid-sandbox',
@@ -130,12 +149,14 @@ export class BrowserManager {
         } catch (err) {
           launchError = err;
           const message = err instanceof Error ? err.message : String(err);
-          const isLockError = /already running.*userDataDir/i.test(message);
+          const isLockError = isProfileLockError(message);
           if (!isLockError || attempt === LOCK_RETRY_COUNT) break;
 
+          const nextUserDataDir = getFallbackUserDataDir(configuredUserDataDir, attempt);
           console.warn(
-            `[Browser] userDataDir is locked. retry ${attempt}/${LOCK_RETRY_COUNT} in ${LOCK_RETRY_DELAY_MS}ms`,
+            `[Browser] userDataDir is locked (${launchUserDataDir}). retry ${attempt}/${LOCK_RETRY_COUNT} in ${LOCK_RETRY_DELAY_MS}ms with ${nextUserDataDir}`,
           );
+          launchUserDataDir = nextUserDataDir;
           await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAY_MS));
         }
       }
@@ -231,6 +252,12 @@ export class BrowserManager {
       });
       await this.cdp.send('Emulation.setLocaleOverride', {
         locale: 'ja-JP',
+      });
+      await this.cdp.send('Page.setDownloadBehavior', {
+        behavior: 'allow',
+        downloadPath: this.downloadDir,
+      }).catch((err) => {
+        console.warn('[Browser] Failed to set download behavior:', err);
       });
       await this.cdp.send('Page.startScreencast', {
         format: 'jpeg',
@@ -352,5 +379,9 @@ export class BrowserManager {
       await this.browser.close().catch(() => {});
       this.browser = null;
     }
+  }
+
+  getDownloadDir() {
+    return this.downloadDir;
   }
 }

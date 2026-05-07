@@ -36,7 +36,10 @@
 
     --radius: 0.75rem;
 
-    --font-sans: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Meiryo', 'Inter', sans-serif;
+    --font-sans: 'Noto Sans JP', 'Noto Sans CJK JP', 'Hiragino Kaku Gothic ProN',
+      'Hiragino Sans', 'Yu Gothic UI', 'Yu Gothic', 'Meiryo', 'MS PGothic',
+      'IPAexGothic', 'IPAGothic', 'TakaoPGothic', 'VL PGothic', 'Inter',
+      system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
   }
 

@@ -1,16 +1,29 @@
 import { ShieldCheck, Monitor, Activity, ServerCrash } from "lucide-react";
 
+interface DownloadFile {
+  name: string;
+  size: number;
+  url: string;
+}
+
 interface BrowserStatusBarProps {
   status: string;
   memoryUsage: number;
+  downloads: DownloadFile[];
 }
 
-export function BrowserStatusBar({ status, memoryUsage }: BrowserStatusBarProps) {
+export function BrowserStatusBar({ status, memoryUsage, downloads }: BrowserStatusBarProps) {
   const statusLabelMap: Record<string, string> = {
     connecting: "接続中",
     connected: "接続済み",
     disconnected: "切断",
     error: "エラー",
+  };
+  const latestDownload = downloads[0];
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -33,10 +46,24 @@ export function BrowserStatusBar({ status, memoryUsage }: BrowserStatusBarProps)
         </div>
       </div>
 
-      {/* Memory Usage */}
-      <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1 rounded-full">
-        <Activity className="w-3 h-3 text-primary/70" />
-        <span className="font-mono">{memoryUsage.toFixed(1)} MB</span>
+      <div className="flex items-center gap-2">
+        {latestDownload ? (
+          <a
+            href={latestDownload.url}
+            className="hidden md:flex items-center gap-2 bg-secondary/50 px-3 py-1 rounded-full hover:bg-secondary transition-colors"
+            title={latestDownload.name}
+          >
+            <span className="font-mono">DL {downloads.length}</span>
+            <span className="max-w-52 truncate">{latestDownload.name}</span>
+            <span className="font-mono text-[11px]">{formatSize(latestDownload.size)}</span>
+          </a>
+        ) : null}
+
+        {/* Memory Usage */}
+        <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1 rounded-full">
+          <Activity className="w-3 h-3 text-primary/70" />
+          <span className="font-mono">{memoryUsage.toFixed(1)} MB</span>
+        </div>
       </div>
 
     </div>

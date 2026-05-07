@@ -3,6 +3,8 @@ import { Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { BrowserManager } from "./browser";
 import { wsClientMessageSchema, WsServerMessage } from "@shared/schema";
+import fs from "fs";
+import path from "path";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -13,6 +15,7 @@ export async function registerRoutes(
   let browserManager: BrowserManager | null = null;
   let browserStartPromise: Promise<void> | null = null;
   let cleanupTimer: NodeJS.Timeout | null = null;
+  const fallbackDownloadDir = process.env.BROWSER_DOWNLOAD_DIR || path.join(process.cwd(), ".cache", "downloads");
 
   const broadcast = (msg: WsServerMessage) => {
     const payload = JSON.stringify(msg);
@@ -60,6 +63,8 @@ export async function registerRoutes(
       browserManager = null;
     }, 5000);
   };
+
+  const getDownloadDir = () => browserManager?.getDownloadDir() ?? fallbackDownloadDir;
 
   wss.on("connection", (ws: WebSocket) => {
     console.log("[WS] Client connected");
@@ -135,6 +140,60 @@ export async function registerRoutes(
 
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.get("/api/downloads", async (_req, res) => {
+    try {
+      const downloadDir = getDownloadDir();
+      await fs.promises.mkdir(downloadDir, { recursive: true });
+      const entries = await fs.promises.readdir(downloadDir, { withFileTypes: true });
+      const files = await Promise.all(
+        entries
+          .filter((entry) => entry.isFile())
+          .map(async (entry) => {
+            const fullPath = path.join(downloadDir, entry.name);
+            const stat = await fs.promises.stat(fullPath);
+            return {
+              name: entry.name,
+              size: stat.size,
+              modifiedAt: stat.mtime.toISOString(),
+              url: `/api/downloads/${encodeURIComponent(entry.name)}`,
+            };
+          }),
+      );
+
+      files.sort((a, b) => Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt));
+      res.json({ files });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ message: `Failed to read downloads: ${message}` });
+    }
+  });
+
+  app.get("/api/downloads/:name", async (req, res) => {
+    try {
+      const rawName = req.params.name;
+      const decodedName = decodeURIComponent(rawName);
+      const safeName = path.basename(decodedName);
+      if (!decodedName || decodedName !== safeName || decodedName === "." || decodedName === "..") {
+        return res.status(400).json({ message: "Invalid file name" });
+      }
+
+      const downloadDir = getDownloadDir();
+      const fullPath = path.join(downloadDir, safeName);
+      const stat = await fs.promises.stat(fullPath);
+      if (!stat.isFile()) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      return res.download(fullPath, safeName);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+        return res.status(404).json({ message: "File not found" });
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      return res.status(500).json({ message: `Failed to download file: ${message}` });
+    }
   });
 
   return httpServer;

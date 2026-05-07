@@ -17,6 +17,7 @@ Puppeteer で起動したリモート Chromium を、WebSocket 経由でフロ�
 - 全画面表示の切り替え
 - スクロール
 - ストリーム品質調整（JPEG quality / everyNthFrame）
+- ダウンロード対応（サーバー保存 + クライアント取得）
 
 ## ディレクトリ構成
 
@@ -84,6 +85,12 @@ npm start
 - `navigated` `{ url }`
 - `error` `{ message }`
 - `memory` `{ usage }`
+
+## ダウンロード機能
+
+- Chromium 側のダウンロード先は `BROWSER_DOWNLOAD_DIR`（既定: `.cache/downloads`）
+- 一覧取得: `GET /api/downloads`
+- ファイル取得: `GET /api/downloads/:name`
 
 詳細スキーマは `shared/schema.ts` を参照してください。
 

@@ -4,6 +4,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "chromium": "https://github.com/login?client_id=Iv23liVemv8A9if9v0F2&return_to=%2Flogin%2Foauth%2Fauthorize%3Fclient_id%3DIv23liVemv8A9if9v0F2%26redirect_uri%3Dhttps%253A%252F%252Fchatgpt.com%252Fconnector_platform_oauth_redirect%26response_type%3Dcode%26state%3Doauth_s_69fbe3eb3d6481919307e4fca87ad1a7"
     "postinstall": "node scripts/install-chrome.cjs",
     "dev": "NODE_ENV=development tsx server/index.ts",
     "install:chrome": "node scripts/install-chrome.cjs",
@@ -15,6 +16,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
+    "@openai/codex": "^0.107.0",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-aspect-ratio": "^1.1.3",
