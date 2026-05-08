@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: remote-browser-streaming
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BROWSER_USER_DATA_DIR
+        value: /data/chrome-user-data
+      - key: BROWSER_DOWNLOAD_DIR
+        value: /data/downloads
+      - key: PUPPETEER_CACHE_DIR
+        value: /data/puppeteer-cache
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /data/ms-playwright
+    disks:
+      - name: browser-data
+        mountPath: /data
+        sizeGB: 10
