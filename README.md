@@ -119,3 +119,53 @@ npm start
 - クライアントは接続断時に自動再接続を行います。
 - サーバー側では接続時に `https://google.com` へ初期遷移します。
 - Chromium の Cookie / LocalStorage は `BROWSER_USER_DATA_DIR` に永続化されます。
+
+
+## Render へのデプロイ方法
+
+### 前提
+
+- Render のアカウント作成と課金設定
+- GitHub 連携（このリポジトリを Render から参照できる状態）
+
+### 方法A: Blueprint（`render.yaml`）を使う（推奨）
+
+1. Render ダッシュボードで **New +** → **Blueprint** を選択
+2. このリポジトリを選択
+3. `render.yaml` が検出されたら内容を確認して作成
+4. 初回デプロイ完了後、必要に応じて `PUPPETEER_EXECUTABLE_PATH` を環境変数に追加
+
+この設定では以下が自動構成されます。
+
+- Build: `npm ci && npm run build`
+- Start: `npm start`
+- Health Check: `/api/health`
+- 無料枠向け設定: `/tmp` 配下を使用（再デプロイ/再起動で消える）
+
+### 方法B: 手動で Web Service を作る
+
+1. **New +** → **Web Service**
+2. Runtime: Node
+3. Build Command: `npm ci && npm run build`
+4. Start Command: `npm start`
+5. Health Check Path: `/api/health`
+6. （無料枠）Persistent Disk は使えないため `/tmp` を使用
+7. 環境変数を設定
+   - `NODE_ENV=production`
+   - `BROWSER_USER_DATA_DIR=/tmp/chrome-user-data`
+   - `BROWSER_DOWNLOAD_DIR=/tmp/downloads`
+   - `PUPPETEER_CACHE_DIR=/tmp/puppeteer-cache`
+   - `PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright`
+
+### デプロイ後の確認
+
+- `GET /api/health` が `{"status":"ok"}` を返すこと
+- 画面を開いて `/ws` 接続が `connected` になること
+- 無料枠では再起動/再デプロイ後にダウンロードファイルが消えること（仕様どおり）
+
+
+### 無料枠での注意点
+
+- スリープ復帰時に初回接続が遅くなることがあります。
+- `/tmp` 配下は永続化されないため、Chromeプロファイル/ダウンロード/キャッシュは消えます。
+- 長時間・高負荷のストリーミング用途では有料プランより不安定になりやすいです。
