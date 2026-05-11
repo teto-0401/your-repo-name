@@ -2,7 +2,7 @@ services:
   - type: web
     name: remote-browser-streaming
     runtime: node
-    plan: starter
+    plan: free
     region: oregon
     buildCommand: npm ci --include=dev && npm run build && npm prune --omit=dev
     startCommand: npm start
@@ -12,14 +12,10 @@ services:
       - key: NODE_ENV
         value: production
       - key: BROWSER_USER_DATA_DIR
-        value: /data/chrome-user-data
+        value: /tmp/chrome-user-data
       - key: BROWSER_DOWNLOAD_DIR
-        value: /data/downloads
+        value: /tmp/downloads
       - key: PUPPETEER_CACHE_DIR
-        value: /data/puppeteer-cache
+        value: /tmp/puppeteer-cache
       - key: PLAYWRIGHT_BROWSERS_PATH
-        value: /data/ms-playwright
-    disks:
-      - name: browser-data
-        mountPath: /data
-        sizeGB: 10
+        value: /tmp/ms-playwright
