@@ -125,10 +125,10 @@ export class BrowserManager {
           }
           console.log(`[Browser] No executable found in Playwright cache path: ${base}`);
         }
-      }
-      
-      if (!execPath) {
-        try {
+        }
+
+        if (!execPath) {
+          try {
           execPath = execSync('which chromium || which google-chrome-stable || which google-chrome').toString().trim();
           if (execPath) {
             console.log(`[Browser] Resolved executable from system path: ${execPath}`);
@@ -362,46 +362,46 @@ export class BrowserManager {
   }
   
   async mouseMove(x: number, y: number) {
-    await this.page?.mouse.move(x, y).catch(() => {});
+    await this.page?.mouse.move(x, y).catch((err) => { console.log('[Browser] mouseMove failed:', err); });
   }
 
   async mouseDown(button: 'left'|'middle'|'right') {
-    await this.page?.mouse.down({ button }).catch(() => {});
+    await this.page?.mouse.down({ button }).catch((err) => { console.log('[Browser] mouseDown failed:', err); });
   }
 
   async mouseUp(button: 'left'|'middle'|'right') {
-    await this.page?.mouse.up({ button }).catch(() => {});
+    await this.page?.mouse.up({ button }).catch((err) => { console.log('[Browser] mouseUp failed:', err); });
   }
 
   async keyDown(key: string) {
-    await this.page?.keyboard.down(key as any).catch(() => {});
+    await this.page?.keyboard.down(key as any).catch((err) => { console.log('[Browser] keyDown failed:', err); });
   }
 
   async keyUp(key: string) {
-    await this.page?.keyboard.up(key as any).catch(() => {});
+    await this.page?.keyboard.up(key as any).catch((err) => { console.log('[Browser] keyUp failed:', err); });
   }
 
   async insertText(text: string) {
     if (!text) return;
 
     if (this.cdp) {
-      await this.cdp.send('Input.insertText', { text }).catch(() => {});
+      await this.cdp.send('Input.insertText', { text }).catch((err) => { console.log('[Browser] insertText (cdp) failed:', err); });
       return;
     }
 
-    await this.page?.keyboard.type(text).catch(() => {});
+    await this.page?.keyboard.type(text).catch((err) => { console.log('[Browser] insertText (keyboard.type) failed:', err); });
   }
 
   async scroll(deltaX: number, deltaY: number) {
     await this.page?.evaluate((dx, dy) => {
       window.scrollBy(dx, dy);
-    }, deltaX, deltaY).catch(() => {});
+    }, deltaX, deltaY).catch((err) => { console.log('[Browser] scroll failed:', err); });
   }
 
   async close() {
     this.isClosing = true;
     if (this.browser) {
-      await this.browser.close().catch(() => {});
+      await this.browser.close().catch((err) => { console.log('[Browser] close failed:', err); });
       this.browser = null;
     }
   }

@@ -166,6 +166,7 @@ export async function registerRoutes(
       res.json({ files });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      console.log(`[Downloads] Failed to read downloads: ${message}`);
       res.status(500).json({ message: `Failed to read downloads: ${message}` });
     }
   });
@@ -192,6 +193,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "File not found" });
       }
       const message = err instanceof Error ? err.message : String(err);
+      console.log(`[Downloads] Failed to download file: ${message}`);
       return res.status(500).json({ message: `Failed to download file: ${message}` });
     }
   });
