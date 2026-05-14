@@ -119,3 +119,46 @@ npm start
 - クライアントは接続断時に自動再接続を行います。
 - サーバー側では接続時に `https://google.com` へ初期遷移します。
 - Chromium の Cookie / LocalStorage は `BROWSER_USER_DATA_DIR` に永続化されます。
+
+
+## Render へのデプロイ方法
+
+### 前提
+
+- Render のアカウント作成と課金設定
+- GitHub 連携（このリポジトリを Render から参照できる状態）
+
+### 方法A: Blueprint（`render.yaml`）を使う（推奨）
+
+1. Render ダッシュボードで **New +** → **Blueprint** を選択
+2. このリポジトリを選択
+3. `render.yaml` が検出されたら内容を確認して作成
+4. 初回デプロイ完了後、必要に応じて `PUPPETEER_EXECUTABLE_PATH` を環境変数に追加
+
+この設定では以下が自動構成されます。
+
+- Build: `npm ci && npm run build`
+- Start: `npm start`
+- Health Check: `/api/health`
+- 永続ディスク: `/data`（Chrome プロファイル・ダウンロード保存先）
+
+### 方法B: 手動で Web Service を作る
+
+1. **New +** → **Web Service**
+2. Runtime: Node
+3. Build Command: `npm ci && npm run build`
+4. Start Command: `npm start`
+5. Health Check Path: `/api/health`
+6. Persistent Disk を追加して mount path を `/data` に設定
+7. 環境変数を設定
+   - `NODE_ENV=production`
+   - `BROWSER_USER_DATA_DIR=/data/chrome-user-data`
+   - `BROWSER_DOWNLOAD_DIR=/data/downloads`
+   - `PUPPETEER_CACHE_DIR=/data/puppeteer-cache`
+   - `PLAYWRIGHT_BROWSERS_PATH=/data/ms-playwright`
+
+### デプロイ後の確認
+
+- `GET /api/health` が `{"status":"ok"}` を返すこと
+- 画面を開いて `/ws` 接続が `connected` になること
+- ダウンロードファイルが再起動後も残ること

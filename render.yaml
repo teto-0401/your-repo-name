@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: remote-browser-streaming
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build && npm prune --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BROWSER_USER_DATA_DIR
+        value: /tmp/chrome-user-data
+      - key: BROWSER_DOWNLOAD_DIR
+        value: /tmp/downloads
+      - key: PUPPETEER_CACHE_DIR
+        value: /tmp/puppeteer-cache
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /tmp/ms-playwright

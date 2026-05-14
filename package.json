@@ -4,7 +4,6 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "chromium": "https://github.com/login?client_id=Iv23liVemv8A9if9v0F2&return_to=%2Flogin%2Foauth%2Fauthorize%3Fclient_id%3DIv23liVemv8A9if9v0F2%26redirect_uri%3Dhttps%253A%252F%252Fchatgpt.com%252Fconnector_platform_oauth_redirect%26response_type%3Dcode%26state%3Doauth_s_69fbe3eb3d6481919307e4fca87ad1a7"
     "postinstall": "node scripts/install-chrome.cjs",
     "dev": "NODE_ENV=development tsx server/index.ts",
     "install:chrome": "node scripts/install-chrome.cjs",
@@ -64,6 +63,7 @@
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
     "playwright": "^1.58.2",
+    "puppeteer-core": "^24.43.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "react": "^18.3.1",

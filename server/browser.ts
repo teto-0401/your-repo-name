@@ -26,6 +26,26 @@ function getFallbackUserDataDir(baseDir: string, attempt: number): string {
   return path.join(path.dirname(baseDir), `${path.basename(baseDir)}-session-${suffix}`);
 }
 
+
+function findChromeFromPlaywrightCache(baseDir: string): string | undefined {
+  if (!fs.existsSync(baseDir)) return undefined;
+
+  const candidates: string[] = [];
+  const dirs = fs.readdirSync(baseDir, { withFileTypes: true });
+  for (const dir of dirs) {
+    if (!dir.isDirectory()) continue;
+    if (!dir.name.startsWith('chromium-') && !dir.name.startsWith('chrome-')) continue;
+    const root = path.join(baseDir, dir.name);
+    candidates.push(
+      path.join(root, 'chrome-linux', 'chrome'),
+      path.join(root, 'chrome-linux64', 'chrome'),
+      path.join(root, 'chrome-headless-shell-linux64', 'chrome-headless-shell'),
+      path.join(root, 'chrome-headless-shell-linux64', 'chrome-headless-shell-linux64', 'chrome-headless-shell'),
+    );
+  }
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
 function findChromeFromPuppeteerCache(cacheRoot: string): string | undefined {
   const chromeRoot = path.join(cacheRoot, 'chrome');
   if (!fs.existsSync(chromeRoot)) return undefined;
@@ -87,25 +107,18 @@ export class BrowserManager {
       }
 
       if (!execPath) {
-        // Playwright の標準的なキャッシュパスを確認
         const pwPaths = [
           process.env.PLAYWRIGHT_BROWSERS_PATH,
+          path.join(process.cwd(), '.cache', 'ms-playwright'),
           path.join(process.env.HOME || '', '.cache/ms-playwright'),
-          '/opt/render/.cache/ms-playwright'
+          '/opt/render/.cache/ms-playwright',
         ].filter(Boolean) as string[];
-        
+
         for (const base of pwPaths) {
-          if (fs.existsSync(base)) {
-            // chromium-* ディレクトリ配下の chrome バイナリを探す
-            const dirs = fs.readdirSync(base);
-            const chromiumDir = dirs.find(d => d.startsWith('chromium-'));
-            if (chromiumDir) {
-              const fullPath = path.join(base, chromiumDir, 'chrome-linux/chrome');
-              if (fs.existsSync(fullPath)) {
-                execPath = fullPath;
-                break;
-              }
-            }
+          const found = findChromeFromPlaywrightCache(base);
+          if (found) {
+            execPath = found;
+            break;
           }
         }
       }
@@ -162,9 +175,14 @@ export class BrowserManager {
       }
 
       if (!this.browser) {
+        if (!execPath) {
+          throw new Error(
+            'Browser executable could not be resolved. Set PUPPETEER_EXECUTABLE_PATH or ensure Playwright/Chromium is installed.',
+          );
+        }
         throw launchError instanceof Error
           ? launchError
-          : new Error(String(launchError ?? "Failed to launch browser"));
+          : new Error(String(launchError ?? 'Failed to launch browser'));
       }
 
       this.browser.on('disconnected', () => {
