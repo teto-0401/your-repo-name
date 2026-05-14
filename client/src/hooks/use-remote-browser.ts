@@ -63,6 +63,7 @@ export function useRemoteBrowser({ onFrame }: UseRemoteBrowserProps = {}) {
         }
       } catch (err) {
         console.error("Failed to parse WS message", err);
+        console.log("[WS] Failed to parse WS message:", err);
       }
     };
 
