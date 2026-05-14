@@ -100,9 +100,11 @@ export class BrowserManager {
         for (const cachePath of puppeteerCachePaths) {
           const found = findChromeFromPuppeteerCache(cachePath);
           if (found) {
+            console.log(`[Browser] Resolved executable from Puppeteer cache: ${found}`);
             execPath = found;
             break;
           }
+          console.log(`[Browser] No executable found in Puppeteer cache path: ${cachePath}`);
         }
       }
 
@@ -117,17 +119,22 @@ export class BrowserManager {
         for (const base of pwPaths) {
           const found = findChromeFromPlaywrightCache(base);
           if (found) {
+            console.log(`[Browser] Resolved executable from Playwright cache: ${found}`);
             execPath = found;
             break;
           }
+          console.log(`[Browser] No executable found in Playwright cache path: ${base}`);
         }
       }
       
       if (!execPath) {
         try {
           execPath = execSync('which chromium || which google-chrome-stable || which google-chrome').toString().trim();
+          if (execPath) {
+            console.log(`[Browser] Resolved executable from system path: ${execPath}`);
+          }
         } catch (e) {
-          // fallback
+          console.warn('[Browser] Could not resolve executable from system path (which chromium/google-chrome).');
         }
       }
 
