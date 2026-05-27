@@ -1,10 +1,9 @@
 modules = ["nodejs-20", "web", "postgresql-16"]
 run = "npm run dev"
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["chromium", "gh", "unzip", "noto-fonts-cjk-sans", "noto-fonts-cjk-serif", "noto-fonts-emoji"]
+packages = ["chromium", "gh", "unzip", "noto-fonts-cjk-sans", "noto-fonts-cjk-serif", "noto-fonts-emoji", "copilot-cli", "nano"]
 
 [[ports]]
 localPort = 1455
@@ -46,3 +45,10 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[userenv]
+
+[userenv.shared]
+
+[agent]
+expertMode = true

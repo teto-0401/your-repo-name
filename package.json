@@ -4,6 +4,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "chromium": "rm /home/runner/workspace/.config/chromium/Singleton* & chromium --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-session-crashed-bubble",
     "postinstall": "node scripts/install-chrome.cjs",
     "dev": "NODE_ENV=development tsx server/index.ts",
     "install:chrome": "node scripts/install-chrome.cjs",
@@ -13,6 +14,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@github/copilot": "^1.0.45",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@openai/codex": "^0.107.0",
@@ -52,7 +54,7 @@
     "drizzle-orm": "^0.39.3",
     "drizzle-zod": "^0.7.0",
     "embla-carousel-react": "^8.6.0",
-    "express": "^5.0.1",
+    "express": "^5.2.1",
     "express-session": "^1.18.1",
     "framer-motion": "^11.13.1",
     "input-otp": "^1.4.2",

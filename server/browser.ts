@@ -9,7 +9,10 @@ puppeteer.use(StealthPlugin());
 
 const LOCK_RETRY_DELAY_MS = 500;
 const LOCK_RETRY_COUNT = 8;
-const ACCEPT_LANGUAGE = "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7";
+
+const ACCEPT_LANGUAGE =
+  "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7";
+
 const PROFILE_LOCK_PATTERNS = [
   /already running.*userDataDir/i,
   /profile appears to be in use/i,
@@ -17,49 +20,66 @@ const PROFILE_LOCK_PATTERNS = [
   /SingletonLock/i,
 ];
 
-function isProfileLockError(message: string): boolean {
-  return PROFILE_LOCK_PATTERNS.some((pattern) => pattern.test(message));
+function isProfileLockError(
+  message: string
+): boolean {
+  return PROFILE_LOCK_PATTERNS.some(
+    (pattern) => pattern.test(message)
+  );
 }
 
-function getFallbackUserDataDir(baseDir: string, attempt: number): string {
-  const suffix = `${process.pid}-${Date.now()}-${attempt}`;
-  return path.join(path.dirname(baseDir), `${path.basename(baseDir)}-session-${suffix}`);
+function getFallbackUserDataDir(
+  baseDir: string,
+  attempt: number
+): string {
+  const suffix =
+    `${process.pid}-${Date.now()}-${attempt}`;
+
+  return path.join(
+    path.dirname(baseDir),
+    `${path.basename(baseDir)}-session-${suffix}`
+  );
 }
 
+function findChromeFromPuppeteerCache(
+  cacheRoot: string
+): string | undefined {
+  const chromeRoot =
+    path.join(cacheRoot, 'chrome');
 
-function findChromeFromPlaywrightCache(baseDir: string): string | undefined {
-  if (!fs.existsSync(baseDir)) return undefined;
-
-  const candidates: string[] = [];
-  const dirs = fs.readdirSync(baseDir, { withFileTypes: true });
-  for (const dir of dirs) {
-    if (!dir.isDirectory()) continue;
-    if (!dir.name.startsWith('chromium-') && !dir.name.startsWith('chrome-')) continue;
-    const root = path.join(baseDir, dir.name);
-    candidates.push(
-      path.join(root, 'chrome-linux', 'chrome'),
-      path.join(root, 'chrome-linux64', 'chrome'),
-      path.join(root, 'chrome-headless-shell-linux64', 'chrome-headless-shell'),
-      path.join(root, 'chrome-headless-shell-linux64', 'chrome-headless-shell-linux64', 'chrome-headless-shell'),
-    );
+  if (!fs.existsSync(chromeRoot)) {
+    return undefined;
   }
 
-  return candidates.find((candidate) => fs.existsSync(candidate));
-}
-function findChromeFromPuppeteerCache(cacheRoot: string): string | undefined {
-  const chromeRoot = path.join(cacheRoot, 'chrome');
-  if (!fs.existsSync(chromeRoot)) return undefined;
+  const builds = fs.readdirSync(
+    chromeRoot,
+    { withFileTypes: true }
+  );
 
-  const builds = fs.readdirSync(chromeRoot, { withFileTypes: true });
   for (const build of builds) {
     if (!build.isDirectory()) continue;
-    const base = path.join(chromeRoot, build.name);
+
+    const base =
+      path.join(chromeRoot, build.name);
+
     const candidates = [
-      path.join(base, 'chrome-linux64', 'chrome'),
-      path.join(base, 'chrome-linux', 'chrome'),
+      path.join(
+        base,
+        'chrome-linux64',
+        'chrome'
+      ),
+
+      path.join(
+        base,
+        'chrome-linux',
+        'chrome'
+      ),
     ];
+
     for (const candidate of candidates) {
-      if (fs.existsSync(candidate)) return candidate;
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
     }
   }
 
@@ -70,9 +90,17 @@ export class BrowserManager {
   private browser: Browser | null = null;
   private page: Page | null = null;
   private cdp: CDPSession | null = null;
+
   private isClosing = false;
-  private downloadDir = process.env.BROWSER_DOWNLOAD_DIR || path.join(process.cwd(), '.cache', 'downloads');
-  
+
+  private downloadDir =
+    process.env.BROWSER_DOWNLOAD_DIR ||
+    path.join(
+      process.cwd(),
+      '.cache',
+      'downloads'
+    );
+
   constructor(
     private onFrame: (data: string) => void,
     private onNavigated: (url: string) => void,
@@ -81,24 +109,72 @@ export class BrowserManager {
 
   async start() {
     try {
-      process.env.PUPPETEER_CACHE_DIR ??= path.join(process.cwd(), '.cache', 'puppeteer');
-      process.env.PLAYWRIGHT_BROWSERS_PATH ??= process.env.RENDER
-        ? '/opt/render/.cache/ms-playwright'
-        : path.join(process.cwd(), '.cache', 'ms-playwright');
-      const configuredUserDataDir = process.env.BROWSER_USER_DATA_DIR || path.join(process.cwd(), '.cache', 'chrome-user-data');
-      fs.mkdirSync(configuredUserDataDir, { recursive: true });
-      fs.mkdirSync(this.downloadDir, { recursive: true });
-      let execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      process.env.PUPPETEER_CACHE_DIR ??=
+        path.join(
+          process.cwd(),
+          '.cache',
+          'puppeteer'
+        );
+
+      process.env.PLAYWRIGHT_BROWSERS_PATH ??=
+        process.env.RENDER
+          ? '/opt/render/.cache/ms-playwright'
+          : path.join(
+              process.cwd(),
+              '.cache',
+              'ms-playwright'
+            );
+
+      const configuredUserDataDir =
+        process.env.BROWSER_USER_DATA_DIR ||
+        path.join(
+          process.cwd(),
+          '.cache',
+          'chrome-user-data'
+        );
+
+      fs.mkdirSync(
+        configuredUserDataDir,
+        { recursive: true }
+      );
+
+      fs.mkdirSync(
+        this.downloadDir,
+        { recursive: true }
+      );
+
+      let execPath =
+        process.env.PUPPETEER_EXECUTABLE_PATH;
+
+      /*
+        Puppeteer cache search
+      */
+
       if (!execPath) {
         const puppeteerCachePaths = [
           process.env.PUPPETEER_CACHE_DIR,
-          path.join(process.cwd(), '.cache', 'puppeteer'),
-          path.join(process.env.HOME || '', '.cache', 'puppeteer'),
+
+          path.join(
+            process.cwd(),
+            '.cache',
+            'puppeteer'
+          ),
+
+          path.join(
+            process.env.HOME || '',
+            '.cache',
+            'puppeteer'
+          ),
+
           '/opt/render/.cache/puppeteer',
         ].filter(Boolean) as string[];
 
         for (const cachePath of puppeteerCachePaths) {
-          const found = findChromeFromPuppeteerCache(cachePath);
+          const found =
+            findChromeFromPuppeteerCache(
+              cachePath
+            );
+
           if (found) {
             console.log(`[Browser] Resolved executable from Puppeteer cache: ${found}`);
             execPath = found;
@@ -108,76 +184,181 @@ export class BrowserManager {
         }
       }
 
+      /*
+        Playwright cache search
+      */
+
       if (!execPath) {
         const pwPaths = [
           process.env.PLAYWRIGHT_BROWSERS_PATH,
-          path.join(process.cwd(), '.cache', 'ms-playwright'),
-          path.join(process.env.HOME || '', '.cache/ms-playwright'),
-          '/opt/render/.cache/ms-playwright',
+
+
+          path.join(
+            process.env.HOME || '',
+            '.cache/ms-playwright'
+          ),
+
+          '/opt/render/.cache/ms-playwright'
         ].filter(Boolean) as string[];
 
         for (const base of pwPaths) {
-          const found = findChromeFromPlaywrightCache(base);
-          if (found) {
-            console.log(`[Browser] Resolved executable from Playwright cache: ${found}`);
-            execPath = found;
+          if (!fs.existsSync(base)) {
+            continue;
+          }
+
+          const dirs =
+            fs.readdirSync(base);
+
+          const chromiumDir =
+            dirs.find((d) =>
+              d.startsWith('chromium-')
+            );
+
+          if (!chromiumDir) {
+            continue;
+          }
+
+          const fullPath =
+            path.join(
+              base,
+              chromiumDir,
+              'chrome-linux/chrome'
+            );
+
+          if (fs.existsSync(fullPath)) {
+            execPath = fullPath;
+
             break;
           }
           console.log(`[Browser] No executable found in Playwright cache path: ${base}`);
         }
-        }
 
-        if (!execPath) {
-          try {
-          execPath = execSync('which chromium || which google-chrome-stable || which google-chrome').toString().trim();
-          if (execPath) {
-            console.log(`[Browser] Resolved executable from system path: ${execPath}`);
-          }
-        } catch (e) {
-          console.warn('[Browser] Could not resolve executable from system path (which chromium/google-chrome).');
-        }
+      }
+
+      /*
+        Nix Chromium fallback
+      */
+
+      const nixChromium =
+        "/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium";
+
+      if (
+        fs.existsSync(nixChromium)
+      ) {
+        execPath = nixChromium;
+      }
+
+      /*
+        which chromium fallback
+      */
+
+      if (!execPath) {
+        try {
+          execPath = execSync(
+            'which chromium || which google-chrome-stable || which google-chrome'
+          )
+            .toString()
+            .trim();
+        } catch {}
       }
 
       if (execPath) {
-        console.log(`[Browser] Launching with executable: ${execPath}`);
+        console.log(
+          `[Browser] Launching with executable: ${execPath}`
+        );
       } else {
-        console.warn(`[Browser] No executablePath found, relying on Puppeteer cache: ${process.env.PUPPETEER_CACHE_DIR}`);
+        console.warn(
+          '[Browser] No executable found'
+        );
       }
 
       let launchError: unknown;
-      let launchUserDataDir = configuredUserDataDir;
-      for (let attempt = 1; attempt <= LOCK_RETRY_COUNT; attempt++) {
+
+      let launchUserDataDir =
+        configuredUserDataDir;
+
+      for (
+        let attempt = 1;
+        attempt <= LOCK_RETRY_COUNT;
+        attempt++
+      ) {
         try {
-          fs.mkdirSync(launchUserDataDir, { recursive: true });
-          this.browser = await puppeteer.launch({
-            headless: true,
-            executablePath: execPath,
-            userDataDir: launchUserDataDir,
-            args: [
-              '--no-sandbox',
-              '--disable-setuid-sandbox',
-              '--disable-dev-shm-usage',
-              '--disable-gpu',
-              '--lang=ja-JP',
-              '--accept-lang=ja-JP,ja',
-              '--window-size=1280,720'
-            ],
-            defaultViewport: { width: 1280, height: 720 }
-          });
+          fs.mkdirSync(
+            launchUserDataDir,
+            { recursive: true }
+          );
+
+          this.browser =
+            await puppeteer.launch({
+              headless: true,
+
+              executablePath:
+                execPath,
+
+              userDataDir:
+                launchUserDataDir,
+
+              args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+
+                '--lang=ja-JP',
+                '--accept-lang=ja-JP,ja',
+
+                '--window-size=1280,720'
+              ],
+
+              defaultViewport: {
+                width: 1280,
+                height: 720
+              }
+            });
+
           launchError = undefined;
           break;
+
         } catch (err) {
           launchError = err;
-          const message = err instanceof Error ? err.message : String(err);
-          const isLockError = isProfileLockError(message);
-          if (!isLockError || attempt === LOCK_RETRY_COUNT) break;
 
-          const nextUserDataDir = getFallbackUserDataDir(configuredUserDataDir, attempt);
+          const message =
+            err instanceof Error
+              ? err.message
+              : String(err);
+
+          const isLockError =
+            isProfileLockError(
+              message
+            );
+
+          if (
+            !isLockError ||
+            attempt === LOCK_RETRY_COUNT
+          ) {
+            break;
+          }
+
+          const nextUserDataDir =
+            getFallbackUserDataDir(
+              configuredUserDataDir,
+              attempt
+            );
+
           console.warn(
-            `[Browser] userDataDir is locked (${launchUserDataDir}). retry ${attempt}/${LOCK_RETRY_COUNT} in ${LOCK_RETRY_DELAY_MS}ms with ${nextUserDataDir}`,
+            `[Browser] userDataDir locked: retry ${attempt}/${LOCK_RETRY_COUNT}`
           );
-          launchUserDataDir = nextUserDataDir;
-          await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAY_MS));
+
+          launchUserDataDir =
+            nextUserDataDir;
+
+          await new Promise(
+            (resolve) =>
+              setTimeout(
+                resolve,
+                LOCK_RETRY_DELAY_MS
+              )
+          );
         }
       }
 
@@ -189,219 +370,364 @@ export class BrowserManager {
         }
         throw launchError instanceof Error
           ? launchError
-          : new Error(String(launchError ?? 'Failed to launch browser'));
+
+          : new Error(
+              String(
+                launchError ??
+                  'Failed to launch browser'
+              )
+            );
       }
 
-      this.browser.on('disconnected', () => {
-        if (!this.isClosing) {
-          console.error('[Browser] Abnormal termination: Browser disconnected unexpectedly.');
-          this.onError('Browser disconnected abnormally');
-        }
-      });
+      this.browser.on(
+        'disconnected',
+        () => {
+          if (!this.isClosing) {
+            console.error(
+              '[Browser] Browser disconnected unexpectedly'
+            );
 
-      const pages = await this.browser.pages();
-      this.page = pages[0] || await this.browser.newPage();
+            this.onError(
+              'Browser disconnected'
+            );
+          }
+        }
+      );
+
+      const pages =
+        await this.browser.pages();
+
+      this.page =
+        pages[0] ||
+        await this.browser.newPage();
+
       await this.page.setExtraHTTPHeaders({
-        "Accept-Language": ACCEPT_LANGUAGE,
+        "Accept-Language":
+          ACCEPT_LANGUAGE,
       });
+
       await this.page.setBypassCSP(true);
-      await this.page.evaluateOnNewDocument(() => {
-        const setNavigatorLocale = () => {
-          const nav = window.navigator as Navigator & {
-            language?: string;
-            languages?: string[];
-          };
-          try {
-            Object.defineProperty(nav, "language", {
-              get: () => "ja-JP",
-              configurable: true,
-            });
-          } catch {}
-          try {
-            Object.defineProperty(nav, "languages", {
-              get: () => ["ja-JP", "ja", "en-US", "en"],
-              configurable: true,
-            });
-          } catch {}
-        };
 
-        setNavigatorLocale();
-
-        const ensureJapaneseFont = () => {
-          if (document.getElementById("codex-ja-font-style")) return;
-          const style = document.createElement("style");
-          style.id = "codex-ja-font-style";
-          style.textContent = `
-            html, body,
-            :lang(ja), [lang="ja"], [lang^="ja-"] {
-              font-family:
-                "Noto Sans CJK JP",
-                "Noto Sans JP",
-                "Noto Sans CJK",
-                "Noto Serif CJK JP",
-                "Hiragino Kaku Gothic ProN",
-                "Yu Gothic",
-                "Meiryo",
-                sans-serif !important;
-            }
-          `;
-          (document.head || document.documentElement).appendChild(style);
-        };
-        if (document.readyState === "loading") {
-          document.addEventListener("DOMContentLoaded", ensureJapaneseFont, {
-            once: true,
-          });
-        } else {
-          ensureJapaneseFont();
+      this.page.on(
+        'framenavigated',
+        (frame) => {
+          if (
+            frame ===
+            this.page?.mainFrame()
+          ) {
+            this.onNavigated(
+              frame.url()
+            );
+          }
         }
-      });
+      );
 
-      this.page.on('framenavigated', (frame) => {
-        if (frame === this.page?.mainFrame()) {
-          this.onNavigated(frame.url());
+      this.page.on(
+        'error',
+        (err) => {
+          console.error(
+            '[Browser Page] Crash/Error:',
+            err.message
+          );
+
+          this.onError(
+            `Page crashed: ${err.message}`
+          );
         }
-      });
+      );
 
-      this.page.on('error', (err) => {
-        console.error('[Browser Page] Crash/Error:', err.message);
-        this.onError(`Page crashed: ${err.message}`);
-      });
+      this.cdp =
+        await this.page
+          .target()
+          .createCDPSession();
 
-      this.cdp = await this.page.target().createCDPSession();
-      await this.cdp.send('Page.enable');
-      await this.cdp.send('Network.enable');
-      await this.cdp.send('Network.setExtraHTTPHeaders', {
-        headers: {
-          'Accept-Language': ACCEPT_LANGUAGE,
-        },
-      });
-      await this.cdp.send('Emulation.setLocaleOverride', {
-        locale: 'ja-JP',
-      });
-      await this.cdp.send('Page.setDownloadBehavior', {
-        behavior: 'allow',
-        downloadPath: this.downloadDir,
-      }).catch((err) => {
-        console.warn('[Browser] Failed to set download behavior:', err);
-      });
-      await this.cdp.send('Page.startScreencast', {
-        format: 'jpeg',
-        quality: 40,
-        everyNthFrame: 1
-      });
+      await this.cdp.send(
+        'Page.enable'
+      );
 
-      this.cdp.on('Page.screencastFrame', async (event) => {
-        const { data, sessionId } = event;
-        this.onFrame(data);
-        if (this.cdp) {
-          await this.cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
+      await this.cdp.send(
+        'Network.enable'
+      );
+
+      await this.cdp.send(
+        'Network.setExtraHTTPHeaders',
+        {
+          headers: {
+            'Accept-Language':
+              ACCEPT_LANGUAGE,
+          },
         }
+      );
+
+      await this.cdp.send(
+        'Emulation.setLocaleOverride',
+        {
+          locale: 'ja-JP',
+        }
+      );
+
+      await this.cdp.send(
+        'Page.setDownloadBehavior',
+        {
+          behavior: 'allow',
+          downloadPath:
+            this.downloadDir,
+        }
+      ).catch((err) => {
+        console.warn(
+          '[Browser] Failed to set download behavior:',
+          err
+        );
       });
 
-      console.log('[Browser] Started successfully');
+      await this.cdp.send(
+        'Page.startScreencast',
+        {
+          format: 'jpeg',
+          quality: 40,
+          everyNthFrame: 1
+        }
+      );
+
+      this.cdp.on(
+        'Page.screencastFrame',
+        async (event) => {
+          const {
+            data,
+            sessionId
+          } = event;
+
+          this.onFrame(data);
+
+          if (this.cdp) {
+            await this.cdp.send(
+              'Page.screencastFrameAck',
+              { sessionId }
+            ).catch(() => {});
+          }
+        }
+      );
+
+      console.log(
+        '[Browser] Launch success'
+      );
+
     } catch (err) {
-      console.error('[Browser] Failed to start:', err);
-      this.onError(err instanceof Error ? err.message : String(err));
+      console.error(
+        '[Browser] Failed to start:',
+        err
+      );
+
+      this.onError(
+        err instanceof Error
+          ? err.message
+          : String(err)
+      );
     }
   }
-  
-  async updateScreencastSettings(quality: number, everyNthFrame: number) {
+
+  async updateScreencastSettings(
+    quality: number,
+    everyNthFrame: number
+  ) {
     if (!this.cdp) return;
+
     try {
-      await this.cdp.send('Page.stopScreencast');
-      await this.cdp.send('Page.startScreencast', {
-        format: 'jpeg',
-        quality,
-        everyNthFrame
-      });
-      console.log(`[Browser] Screencast settings updated: quality=${quality}, everyNthFrame=${everyNthFrame}`);
+      await this.cdp.send(
+        'Page.stopScreencast'
+      );
+
+      await this.cdp.send(
+        'Page.startScreencast',
+        {
+          format: 'jpeg',
+          quality,
+          everyNthFrame
+        }
+      );
+
+      console.log(
+        `[Browser] Screencast updated`
+      );
+
     } catch (err) {
-      console.error('[Browser] Failed to update screencast:', err);
+      console.error(
+        '[Browser] Failed to update screencast:',
+        err
+      );
     }
   }
 
   async goto(url: string) {
     if (!this.page) return;
+
     try {
       let targetUrl = url;
-      if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-         targetUrl = 'https://' + targetUrl;
+
+      if (
+        !targetUrl.startsWith('http://') &&
+        !targetUrl.startsWith('https://')
+      ) {
+        targetUrl =
+          'https://' + targetUrl;
       }
-      const parsed = new URL(targetUrl);
-      const host = parsed.hostname.toLowerCase();
-      const isGoogleDomain = host === "google.com" || host.endsWith(".google.com") || host.endsWith(".google.co.jp");
-      if (isGoogleDomain) {
-        if (host === "google.com" || host.endsWith(".google.com")) {
-          parsed.hostname = "www.google.co.jp";
+
+      await this.page.goto(
+        targetUrl,
+        {
+          waitUntil:
+            'domcontentloaded'
         }
-        parsed.searchParams.set("hl", "ja");
-        parsed.searchParams.set("gl", "JP");
-        if (parsed.pathname === "/" || parsed.pathname === "") {
-          parsed.searchParams.set("gws_rd", "cr");
-        }
-        await this.page.setCookie(
-          {
-            name: "PREF",
-            value: "hl=ja&gl=JP",
-            domain: ".google.com",
-            path: "/",
-          },
-          {
-            name: "PREF",
-            value: "hl=ja&gl=JP",
-            domain: ".google.co.jp",
-            path: "/",
-          },
-        );
-      }
-      targetUrl = parsed.toString();
-      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+      );
+
     } catch (err) {
-      console.error(`[Browser] Failed to navigate to ${url}:`, err);
+      console.error(
+        `[Browser] Failed to navigate to ${url}:`,
+        err
+      );
     }
   }
-  
-  async mouseMove(x: number, y: number) {
-    await this.page?.mouse.move(x, y).catch((err) => { console.log('[Browser] mouseMove failed:', err); });
+
+
+  async mouseMove(
+    x: number,
+    y: number
+  ) {
+    if (!this.page) return;
+
+    await this.page.mouse.move(
+      x,
+      y
+    ).catch((err) => {
+      console.log(
+        '[Browser] mouseMove failed:',
+        err
+      );
+    });
   }
 
-  async mouseDown(button: 'left'|'middle'|'right') {
-    await this.page?.mouse.down({ button }).catch((err) => { console.log('[Browser] mouseDown failed:', err); });
+  async mouseDown(
+    button: 'left'|'middle'|'right'
+  ) {
+    if (!this.page) return;
+
+    await this.page.mouse.down({
+      button
+    }).catch((err) => {
+      console.log(
+        '[Browser] mouseDown failed:',
+        err
+      );
+    });
   }
 
-  async mouseUp(button: 'left'|'middle'|'right') {
-    await this.page?.mouse.up({ button }).catch((err) => { console.log('[Browser] mouseUp failed:', err); });
+  async mouseUp(
+    button: 'left'|'middle'|'right'
+  ) {
+    if (!this.page) return;
+
+    await this.page.mouse.up({
+      button
+    }).catch((err) => {
+      console.log(
+        '[Browser] mouseUp failed:',
+        err
+      );
+    });
   }
 
   async keyDown(key: string) {
-    await this.page?.keyboard.down(key as any).catch((err) => { console.log('[Browser] keyDown failed:', err); });
+    if (!this.page) return;
+
+    await this.page.keyboard.down(
+      key as any
+    ).catch((err) => {
+      console.log(
+        '[Browser] keyDown failed:',
+        err
+      );
+    });
   }
 
   async keyUp(key: string) {
-    await this.page?.keyboard.up(key as any).catch((err) => { console.log('[Browser] keyUp failed:', err); });
+    if (!this.page) return;
+
+    await this.page.keyboard.up(
+      key as any
+    ).catch((err) => {
+      console.log(
+        '[Browser] keyUp failed:',
+        err
+      );
+    });
+
   }
 
   async insertText(text: string) {
+    if (!this.page) return;
+
     if (!text) return;
 
     if (this.cdp) {
-      await this.cdp.send('Input.insertText', { text }).catch((err) => { console.log('[Browser] insertText (cdp) failed:', err); });
+      await this.cdp.send(
+        'Input.insertText',
+        { text }
+      ).catch((err) => {
+        console.log(
+          '[Browser] insertText failed:',
+          err
+        );
+      });
+
       return;
     }
 
-    await this.page?.keyboard.type(text).catch((err) => { console.log('[Browser] insertText (keyboard.type) failed:', err); });
+    await this.page.keyboard.type(
+      text
+    ).catch((err) => {
+      console.log(
+        '[Browser] keyboard.type failed:',
+        err
+      );
+    });
   }
 
-  async scroll(deltaX: number, deltaY: number) {
-    await this.page?.evaluate((dx, dy) => {
-      window.scrollBy(dx, dy);
-    }, deltaX, deltaY).catch((err) => { console.log('[Browser] scroll failed:', err); });
+  async scroll(
+    deltaX: number,
+    deltaY: number
+  ) {
+    if (!this.page) return;
+
+    await this.page.evaluate(
+      (dx, dy) => {
+        window.scrollBy(dx, dy);
+      },
+      deltaX,
+      deltaY
+    ).catch((err) => {
+      console.log(
+        '[Browser] scroll failed:',
+        err
+      );
+    });
+
+    
   }
 
   async close() {
     this.isClosing = true;
+
     if (this.browser) {
-      await this.browser.close().catch((err) => { console.log('[Browser] close failed:', err); });
+
+      await this.browser.close()
+        .catch((err) => {
+          console.log(
+            '[Browser] close failed:',
+            err
+          );
+        });
+
+
       this.browser = null;
     }
   }
